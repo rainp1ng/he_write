@@ -61,10 +61,30 @@ he_write/
 - Node.js >= 18.0.0
 - Python >= 3.10
 - pip / pnpm
+- Docker & Docker Compose (可选)
 
-### 后端启动
+### 方式一：Docker 启动 (推荐)
 
 ```bash
+# 启动所有服务
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
+```
+
+### 方式二：本地启动
+
+#### 后端启动
+
+```bash
+# 使用启动脚本
+./start-backend.sh
+
+# 或手动启动
 cd backend
 
 # 创建虚拟环境
@@ -75,15 +95,22 @@ source venv/bin/activate  # Linux/Mac
 # 安装依赖
 pip install -r requirements.txt
 
+# 运行测试
+python test_backend.py
+
 # 启动服务
 python main.py
 # 或
 uvicorn main:app --reload --port 8000
 ```
 
-### 前端启动
+#### 前端启动
 
 ```bash
+# 使用启动脚本
+./start-frontend.sh
+
+# 或手动启动
 cd frontend
 
 # 安装依赖
