@@ -114,8 +114,8 @@ export default function LyricistsPage() {
 
   // 采集歌词
   const crawlMutation = useMutation({
-    mutationFn: (id: number) => lyricistApi.startCrawl(id, { max_samples: 50 }),
-    onSuccess: (res) => {
+    mutationFn: (id: number) => lyricistApi.startCrawl(id, { max_samples: 100 }),
+    onSuccess: (res, id) => {
       toast({ title: '开始采集歌词...' })
       pollCrawlStatus(id)
     },
