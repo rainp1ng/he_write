@@ -213,6 +213,9 @@ async def start_crawl(
     if lyricist_id in crawl_tasks and crawl_tasks[lyricist_id].get("status") == "running":
         raise HTTPException(status_code=400, detail="已有采集任务在运行")
     
+    # 保存作词人名称（避免在后台任务中访问已关闭的 session）
+    lyricist_name = lyricist.name
+    
     # 初始化任务状态
     crawl_tasks[lyricist_id] = {
         "status": "running",
@@ -223,41 +226,44 @@ async def start_crawl(
     
     # 在后台执行爬取任务
     async def run_crawl():
+        from app.core.database import async_session_maker
+        
         try:
             results, progress = await crawler_service.crawl_lyricist(
                 lyricist_id=lyricist_id,
-                lyricist_name=lyricist.name,
+                lyricist_name=lyricist_name,
                 sources=request.sources,
                 max_samples=request.max_samples
             )
             
-            # 保存爬取结果
-            saved = 0
-            for item in results:
-                # 检查是否已存在相同内容
-                existing = await db.execute(
-                    select(LyricsSample).where(
-                        LyricsSample.lyricist_id == lyricist_id,
-                        LyricsSample.title == item.title
+            # 在新的 session 中保存结果
+            async with async_session_maker() as new_db:
+                saved = 0
+                for item in results:
+                    # 检查是否已存在相同内容
+                    existing = await new_db.execute(
+                        select(LyricsSample).where(
+                            LyricsSample.lyricist_id == lyricist_id,
+                            LyricsSample.title == item.title
+                        )
                     )
-                )
-                if existing.scalar_one_or_none():
-                    continue
+                    if existing.scalar_one_or_none():
+                        continue
+                    
+                    sample = LyricsSample(
+                        lyricist_id=lyricist_id,
+                        title=item.title,
+                        content=item.content,
+                        source=item.source,
+                        source_url=item.source_url,
+                        year=item.year,
+                        quality_score=item.quality_score,
+                        status="pending"  # 待审核
+                    )
+                    new_db.add(sample)
+                    saved += 1
                 
-                sample = LyricsSample(
-                    lyricist_id=lyricist_id,
-                    title=item.title,
-                    content=item.content,
-                    source=item.source,
-                    source_url=item.source_url,
-                    year=item.year,
-                    quality_score=item.quality_score,
-                    status="pending"  # 待审核
-                )
-                db.add(sample)
-                saved += 1
-            
-            await db.flush()
+                await new_db.commit()
             
             crawl_tasks[lyricist_id] = {
                 "status": "completed",
@@ -267,6 +273,8 @@ async def start_crawl(
             }
             
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             crawl_tasks[lyricist_id] = {
                 "status": "failed",
                 "found": 0,
