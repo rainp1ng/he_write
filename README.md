@@ -92,8 +92,11 @@ python -m venv venv
 source venv/bin/activate  # Linux/Mac
 # venv\Scripts\activate   # Windows
 
-# 安装依赖
+# 安装依赖 (MVP 精简版)
 pip install -r requirements.txt
+
+# 如需完整功能（含 AI 模型训练），安装完整版
+# pip install -r requirements-full.txt
 
 # 运行测试
 python test_backend.py
