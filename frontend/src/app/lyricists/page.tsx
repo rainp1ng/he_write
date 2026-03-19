@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { 
   Plus, Search, Edit2, Trash2, Music, FolderOpen, 
-  MoreVertical, User 
+  MoreVertical, User, Download, Loader2 
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,6 +38,8 @@ export default function LyricistsPage() {
   const [search, setSearch] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingLyricist, setEditingLyricist] = useState<Lyricist | null>(null)
+  const [crawlingLyricist, setCrawlingLyricist] = useState<number | null>(null)
+  const [crawlStatus, setCrawlStatus] = useState<any>(null)
   const [formData, setFormData] = useState({
     name: '',
     alias: '',
@@ -110,6 +112,61 @@ export default function LyricistsPage() {
     },
   })
 
+  // 采集歌词
+  const crawlMutation = useMutation({
+    mutationFn: (id: number) => lyricistApi.startCrawl(id, { max_samples: 50 }),
+    onSuccess: (res) => {
+      toast({ title: '开始采集歌词...' })
+      pollCrawlStatus(id)
+    },
+    onError: (error: any) => {
+      setCrawlingLyricist(null)
+      toast({ 
+        title: '采集失败', 
+        description: error.response?.data?.detail || '未知错误',
+        variant: 'destructive'
+      })
+    },
+  })
+
+  const pollCrawlStatus = async (lyricistId: number) => {
+    const poll = async () => {
+      try {
+        const res = await lyricistApi.getCrawlStatus(lyricistId)
+        const status = res.data
+        setCrawlStatus(status)
+        
+        if (status.status === 'running') {
+          setTimeout(poll, 2000)
+        } else {
+          setCrawlingLyricist(null)
+          queryClient.invalidateQueries({ queryKey: ['lyricists'] })
+          if (status.status === 'completed') {
+            toast({ 
+              title: '采集完成', 
+              description: `找到 ${status.found} 条，保存 ${status.saved} 条`
+            })
+          } else if (status.status === 'failed') {
+            toast({ 
+              title: '采集失败', 
+              description: status.errors?.join(', ') || '未知错误',
+              variant: 'destructive'
+            })
+          }
+        }
+      } catch (e) {
+        setCrawlingLyricist(null)
+      }
+    }
+    poll()
+  }
+
+  const handleCrawl = (lyricistId: number) => {
+    setCrawlingLyricist(lyricistId)
+    setCrawlStatus({ status: 'running', found: 0, saved: 0 })
+    crawlMutation.mutate(lyricistId)
+  }
+
   const resetForm = () => {
     setFormData({ name: '', alias: '', style: '', description: '' })
   }
@@ -158,7 +215,7 @@ export default function LyricistsPage() {
               <Link href="/models">
                 <Button variant="ghost" size="sm">模型训练</Button>
               </Link>
-              <Link href="/generate">
+              <Link href="/generation">
                 <Button size="sm">开始创作</Button>
               </Link>
             </nav>
@@ -236,7 +293,7 @@ export default function LyricistsPage() {
                       {lyricist.description}
                     </p>
                   )}
-                  <div className="flex gap-4 text-sm text-gray-500">
+                  <div className="flex gap-4 text-sm text-gray-500 mb-4">
                     <span className="flex items-center gap-1">
                       <FolderOpen className="h-4 w-4" />
                       {lyricist.sample_count} 样本
@@ -246,7 +303,31 @@ export default function LyricistsPage() {
                       {lyricist.model_count} 模型
                     </span>
                   </div>
-                  <div className="mt-4 flex gap-2">
+                  
+                  {/* 采集歌词按钮 */}
+                  <div className="mb-3">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => handleCrawl(lyricist.id)}
+                      disabled={crawlingLyricist === lyricist.id}
+                    >
+                      {crawlingLyricist === lyricist.id ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          采集中... {crawlStatus?.found || 0} 条
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-4 w-4 mr-2" />
+                          采集歌词
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  
+                  <div className="flex gap-2">
                     <Link href={`/samples?lyricist_id=${lyricist.id}`} className="flex-1">
                       <Button variant="outline" size="sm" className="w-full">
                         查看样本

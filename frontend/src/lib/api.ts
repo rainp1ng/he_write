@@ -23,6 +23,16 @@ export const lyricistApi = {
   
   delete: (id: number) =>
     api.delete(`/lyricists/${id}`),
+  
+  // 爬虫相关
+  startCrawl: (id: number, data?: { sources?: string[]; max_samples?: number }) =>
+    api.post(`/lyricists/${id}/crawl`, data || {}),
+  
+  getCrawlStatus: (id: number) =>
+    api.get(`/lyricists/${id}/crawl/status`),
+  
+  stopCrawl: (id: number) =>
+    api.post(`/lyricists/${id}/crawl/stop`),
 }
 
 // 歌词样本相关 API
