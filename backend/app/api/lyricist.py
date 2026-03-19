@@ -191,8 +191,8 @@ async def delete_lyricist(
 @router.post("/{lyricist_id}/crawl", response_model=CrawlStatusResponse)
 async def start_crawl(
     lyricist_id: int,
+    background_tasks: BackgroundTasks,
     request: CrawlRequest = CrawlRequest(),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -200,6 +200,7 @@ async def start_crawl(
     
     从指定的数据源采集作词人的歌词
     """
+    
     # 检查作词人是否存在
     result = await db.execute(
         select(Lyricist).where(Lyricist.id == lyricist_id)
