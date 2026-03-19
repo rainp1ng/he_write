@@ -41,13 +41,15 @@ build/
 *.sqlite
 *.sqlite3
 
-# Models
-models/
+# Models (AI model files, not source code)
 *.bin
 *.pt
 *.pth
 *.h5
 *.onnx
+*.safetensors
+he_write/models/
+he_write/backend/models/
 
 # Data
 data/
