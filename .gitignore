@@ -54,7 +54,9 @@ he_write/backend/models/
 # Data
 data/
 *.csv
-*.json
+
+# JSON data files (not config files)
+# data/**/*.json
 
 # Environment
 .env
